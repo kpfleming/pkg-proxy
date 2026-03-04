@@ -353,6 +353,10 @@ log:
 upstream:
   npm: "https://registry.npmjs.org"
   cargo: "https://index.crates.io"
+
+# Optional: hide recently published versions
+cooldown:
+  default: "3d"
 ```
 
 Run with config file:
