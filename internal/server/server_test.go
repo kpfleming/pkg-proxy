@@ -96,6 +96,7 @@ func newTestServer(t *testing.T) *testServer {
 
 	r.Get("/health", s.handleHealth)
 	r.Get("/stats", s.handleStats)
+	r.Get("/openapi.json", s.handleOpenAPIJSON)
 	r.Mount("/static", http.StripPrefix("/static/", staticHandler()))
 	r.Get("/search", s.handleSearch)
 	r.Get("/package/{ecosystem}/{name}", s.handlePackageShow)
@@ -118,6 +119,28 @@ func newTestServer(t *testing.T) *testServer {
 func (ts *testServer) close() {
 	_ = ts.db.Close()
 	_ = os.RemoveAll(ts.tempDir)
+}
+
+func TestHandleOpenAPIJSON(t *testing.T) {
+	ts := newTestServer(t)
+	defer ts.close()
+
+	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
+	w := httptest.NewRecorder()
+	ts.handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		t.Fatalf("expected JSON content type, got %q", contentType)
+	}
+
+	if !strings.Contains(w.Body.String(), `"swagger": "2.0"`) {
+		t.Fatalf("expected swagger document, got %q", w.Body.String())
+	}
 }
 
 func TestHealthEndpoint(t *testing.T) {
@@ -207,6 +230,9 @@ func TestDashboard(t *testing.T) {
 	}
 	if !strings.Contains(body, ">debian<") {
 		t.Error("dashboard should show debian in supported ecosystems")
+	}
+	if !strings.Contains(body, "/openapi.json") {
+		t.Error("page should link to the OpenAPI JSON spec")
 	}
 }
 

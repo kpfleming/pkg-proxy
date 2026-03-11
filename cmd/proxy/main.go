@@ -1,5 +1,10 @@
 // Command proxy runs the git-pkgs package registry proxy server.
 //
+// @title git-pkgs proxy API
+// @version 0.1.0
+// @description HTTP API for package enrichment, vulnerability lookup, cache stats, and source browsing.
+// @BasePath /
+//
 // The proxy caches package artifacts from upstream registries (npm, cargo, etc.)
 // providing faster, more reliable access for development teams.
 //

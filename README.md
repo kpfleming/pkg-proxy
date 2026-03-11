@@ -65,6 +65,25 @@ go build -o proxy ./cmd/proxy
 
 The proxy is now running. Configure your package managers to use it.
 
+## OpenAPI (Swagger)
+
+This repo uses swaggo to generate an OpenAPI spec from annotated handlers.
+
+Generate the spec:
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+go generate ./internal/server
+```
+
+Generated files are written to `docs/swagger/`.
+
+When the proxy is running, fetch the live spec from:
+
+- `http://localhost:8080/openapi.json`
+
+Or replace `http://localhost:8080` with your configured base URL. This link is also shown on the dashboard.
+
 ## Configuring Package Managers
 
 ### npm
