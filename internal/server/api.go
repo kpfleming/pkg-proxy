@@ -130,6 +130,17 @@ type BulkResponse struct {
 }
 
 // HandleGetPackage handles GET /api/package/{ecosystem}/{name}
+// @Summary Get package metadata
+// @Description Returns enriched package metadata. URL-encode scoped names (e.g. @scope/name -> %40scope%2Fname).
+// @Tags api
+// @Produce json
+// @Param ecosystem path string true "Ecosystem"
+// @Param name path string true "Package name"
+// @Success 200 {object} PackageResponse
+// @Failure 400 {string} string
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Router /api/package/{ecosystem}/{name} [get]
 func (h *APIHandler) HandleGetPackage(w http.ResponseWriter, r *http.Request) {
 	ecosystem := chi.URLParam(r, "ecosystem")
 	name := chi.URLParam(r, "name")
@@ -175,6 +186,17 @@ func (h *APIHandler) HandleGetPackage(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleGetVersion handles GET /api/package/{ecosystem}/{name}/{version}
+// @Summary Get version metadata and vulnerabilities
+// @Description Returns enriched package+version metadata and vulnerability data.
+// @Tags api
+// @Produce json
+// @Param ecosystem path string true "Ecosystem"
+// @Param name path string true "Package name"
+// @Param version path string true "Version"
+// @Success 200 {object} EnrichmentResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/package/{ecosystem}/{name}/{version} [get]
 func (h *APIHandler) HandleGetVersion(w http.ResponseWriter, r *http.Request) {
 	ecosystem := chi.URLParam(r, "ecosystem")
 	name := chi.URLParam(r, "name")
@@ -240,6 +262,18 @@ func (h *APIHandler) HandleGetVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleGetVulns handles GET /api/vulns/{ecosystem}/{name}
+// @Summary Get vulnerabilities for a package or version
+// @Description Returns vulnerabilities for a package across versions, or for a specific version if provided.
+// @Tags api
+// @Produce json
+// @Param ecosystem path string true "Ecosystem"
+// @Param name path string true "Package name"
+// @Param version path string false "Version"
+// @Success 200 {object} VulnsResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/vulns/{ecosystem}/{name} [get]
+// @Router /api/vulns/{ecosystem}/{name}/{version} [get]
 func (h *APIHandler) HandleGetVulns(w http.ResponseWriter, r *http.Request) {
 	ecosystem := chi.URLParam(r, "ecosystem")
 	name := chi.URLParam(r, "name")
@@ -283,6 +317,15 @@ func (h *APIHandler) HandleGetVulns(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleOutdated handles POST /api/outdated
+// @Summary Check outdated packages
+// @Tags api
+// @Accept json
+// @Produce json
+// @Param request body OutdatedRequest true "Packages to check"
+// @Success 200 {object} OutdatedResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/outdated [post]
 func (h *APIHandler) HandleOutdated(w http.ResponseWriter, r *http.Request) {
 	var req OutdatedRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -319,6 +362,15 @@ func (h *APIHandler) HandleOutdated(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleBulkLookup handles POST /api/bulk
+// @Summary Bulk package lookup by PURL
+// @Tags api
+// @Accept json
+// @Produce json
+// @Param request body BulkRequest true "PURLs"
+// @Success 200 {object} BulkResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/bulk [post]
 func (h *APIHandler) HandleBulkLookup(w http.ResponseWriter, r *http.Request) {
 	var req BulkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -409,6 +461,15 @@ type SearchPackageResult struct {
 }
 
 // HandleSearch handles GET /api/search
+// @Summary Search cached packages
+// @Tags api
+// @Produce json
+// @Param q query string true "Query"
+// @Param ecosystem query string false "Ecosystem"
+// @Success 200 {object} SearchResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/search [get]
 func (h *APIHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	ecosystem := r.URL.Query().Get("ecosystem")
@@ -497,6 +558,15 @@ type PackageListResult struct {
 }
 
 // HandlePackagesList handles GET /api/packages
+// @Summary List cached packages
+// @Tags api
+// @Produce json
+// @Param ecosystem query string false "Ecosystem"
+// @Param sort query string false "Sort" Enums(hits,name,size,cached_at,ecosystem,vulns)
+// @Success 200 {object} PackagesListResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /api/packages [get]
 func (h *APIHandler) HandlePackagesList(w http.ResponseWriter, r *http.Request) {
 	ecosystem := r.URL.Query().Get("ecosystem")
 	sortBy := r.URL.Query().Get("sort")

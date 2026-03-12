@@ -43,6 +43,18 @@ type BrowseFileInfo struct {
 
 // handleBrowseList returns a list of files in a directory within an archived package version.
 // GET /api/browse/{ecosystem}/{name}/{version}?path=/some/dir
+// @Summary List files inside a cached artifact
+// @Description Lists files from the first cached artifact for a package version.
+// @Tags browse
+// @Produce json
+// @Param ecosystem path string true "Ecosystem"
+// @Param name path string true "Package name"
+// @Param version path string true "Version"
+// @Param path query string false "Directory path inside the archive"
+// @Success 200 {object} BrowseListResponse
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Router /api/browse/{ecosystem}/{name}/{version} [get]
 func (s *Server) handleBrowseList(w http.ResponseWriter, r *http.Request) {
 	ecosystem := chi.URLParam(r, "ecosystem")
 	name := chi.URLParam(r, "name")
@@ -125,6 +137,19 @@ func (s *Server) handleBrowseList(w http.ResponseWriter, r *http.Request) {
 
 // handleBrowseFile returns the contents of a specific file within an archived package version.
 // GET /api/browse/{ecosystem}/{name}/{version}/file/{filepath...}
+// @Summary Fetch a file inside a cached artifact
+// @Description Streams a single file from the cached artifact. The file path may contain slashes.
+// @Tags browse
+// @Produce application/octet-stream
+// @Param ecosystem path string true "Ecosystem"
+// @Param name path string true "Package name"
+// @Param version path string true "Version"
+// @Param filepath path string true "File path inside the archive"
+// @Success 200 {file} file
+// @Failure 400 {string} string
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Router /api/browse/{ecosystem}/{name}/{version}/file/{filepath} [get]
 func (s *Server) handleBrowseFile(w http.ResponseWriter, r *http.Request) {
 	ecosystem := chi.URLParam(r, "ecosystem")
 	name := chi.URLParam(r, "name")
@@ -339,6 +364,18 @@ func (s *Server) handleBrowseSource(w http.ResponseWriter, r *http.Request) {
 
 // handleCompareDiff compares two versions and returns a diff.
 // GET /api/compare/{ecosystem}/{name}/{fromVersion}/{toVersion}
+// @Summary Compare two cached versions
+// @Description Returns a structured diff for two cached versions.
+// @Tags browse
+// @Produce json
+// @Param ecosystem path string true "Ecosystem"
+// @Param name path string true "Package name"
+// @Param fromVersion path string true "From version"
+// @Param toVersion path string true "To version"
+// @Success 200 {object} map[string]any
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Router /api/compare/{ecosystem}/{name}/{fromVersion}/{toVersion} [get]
 func (s *Server) handleCompareDiff(w http.ResponseWriter, r *http.Request) {
 	ecosystem := chi.URLParam(r, "ecosystem")
 	name := chi.URLParam(r, "name")

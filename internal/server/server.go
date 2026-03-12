@@ -21,6 +21,7 @@
 // Additional endpoints:
 //   - /health    - Health check endpoint
 //   - /stats     - Cache statistics (JSON)
+//   - /openapi.json - OpenAPI spec (JSON)
 //   - /packages  - List all cached packages (HTML)
 //   - /search    - Search packages (HTML)
 //
@@ -44,6 +45,7 @@ import (
 	"strconv"
 	"time"
 
+	swaggerdoc "github.com/git-pkgs/proxy/docs/swagger"
 	"github.com/git-pkgs/proxy/internal/config"
 	"github.com/git-pkgs/proxy/internal/cooldown"
 	"github.com/git-pkgs/proxy/internal/database"
@@ -189,6 +191,7 @@ func (s *Server) Start() error {
 	// Health, stats, and static endpoints
 	r.Get("/health", s.handleHealth)
 	r.Get("/stats", s.handleStats)
+	r.Get("/openapi.json", s.handleOpenAPIJSON)
 	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		metrics.Handler().ServeHTTP(w, r)
 	})
@@ -405,6 +408,11 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleOpenAPIJSON(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write([]byte(swaggerdoc.SwaggerInfo.ReadDoc()))
+}
+
 func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Registries []RegistryConfig
@@ -530,16 +538,16 @@ func (s *Server) handlePackagesList(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		items[i] = SearchResultItem{
-			Ecosystem:      pkg.Ecosystem,
-			Name:           pkg.Name,
-			LatestVersion:  latestVersion,
-			License:        license,
+			Ecosystem:       pkg.Ecosystem,
+			Name:            pkg.Name,
+			LatestVersion:   latestVersion,
+			License:         license,
 			LicenseCategory: categorizeLicenseCSS(license),
-			Hits:           pkg.Hits,
-			Size:           pkg.Size,
-			SizeFormatted:  formatSize(pkg.Size),
-			CachedAt:       cachedAt,
-			VulnCount:      pkg.VulnCount,
+			Hits:            pkg.Hits,
+			Size:            pkg.Size,
+			SizeFormatted:   formatSize(pkg.Size),
+			CachedAt:        cachedAt,
+			VulnCount:       pkg.VulnCount,
 		}
 	}
 
@@ -667,6 +675,13 @@ func (s *Server) handleVersionShow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleHealth responds with a simple health check.
+// @Summary Health check
+// @Tags meta
+// @Produce plain
+// @Success 200 {string} string
+// @Failure 503 {string} string
+// @Router /health [get]
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Check database connectivity
 	if _, err := s.db.SchemaVersion(); err != nil {
@@ -688,6 +703,13 @@ type StatsResponse struct {
 	DatabasePath    string `json:"database_path"`
 }
 
+// handleStats returns cache statistics.
+// @Summary Cache statistics
+// @Tags meta
+// @Produce json
+// @Success 200 {object} StatsResponse
+// @Failure 500 {string} string
+// @Router /stats [get]
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -796,4 +818,3 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
 }
-
