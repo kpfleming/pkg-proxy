@@ -223,6 +223,10 @@ func TestStatsEndpoint(t *testing.T) {
 	if stats.CachedArtifacts != 0 {
 		t.Errorf("expected 0 cached artifacts, got %d", stats.CachedArtifacts)
 	}
+
+	if !strings.HasPrefix(stats.StorageURL, "file://") {
+		t.Errorf("expected storage_url to start with file://, got %q", stats.StorageURL)
+	}
 }
 
 func TestDashboard(t *testing.T) {
@@ -865,5 +869,58 @@ func TestHandlePackagesListPage(t *testing.T) {
 	body := w.Body.String()
 	if !strings.Contains(body, "list-test") {
 		t.Error("expected packages list to contain seeded package")
+	}
+}
+
+func TestNewServer_StorageConnectivityCheck(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test.db")
+	storagePath := filepath.Join(tempDir, "artifacts")
+
+	cfg := &config.Config{
+		Listen:   ":0",
+		BaseURL:  "http://localhost:8080",
+		Storage:  config.StorageConfig{URL: "file://" + storagePath},
+		Database: config.DatabaseConfig{Path: dbPath},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	srv, err := New(cfg, logger)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+
+	// On Windows, OpenBucket normalises to file:///C:/path; on Unix the
+	// absolute path already starts with /, so file:// + /path == file:///path.
+	wantPrefix := "file://"
+	wantSuffix := filepath.ToSlash(storagePath)
+	got := srv.storage.URL()
+	if !strings.HasPrefix(got, wantPrefix) || !strings.HasSuffix(got, wantSuffix) {
+		t.Errorf("expected storage URL ending with %s, got %s", wantSuffix, got)
+	}
+
+	_ = srv.db.Close()
+}
+
+func TestStatsEndpoint_StorageURL(t *testing.T) {
+	ts := newTestServer(t)
+	defer ts.close()
+
+	req := httptest.NewRequest("GET", "/stats", nil)
+	w := httptest.NewRecorder()
+	ts.handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	// Verify the JSON response uses storage_url (not storage_path)
+	body := w.Body.String()
+	if !strings.Contains(body, `"storage_url"`) {
+		t.Errorf("expected JSON key storage_url in response, got: %s", body)
+	}
+	if strings.Contains(body, `"storage_path"`) {
+		t.Errorf("unexpected JSON key storage_path in response (should be storage_url)")
 	}
 }
