@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,6 +243,151 @@ func TestComposerRewriteMetadataCooldownPreservesNames(t *testing.T) {
 		if vmap["name"] != "symfony/console" {
 			t.Errorf("version %v missing name field, got %v", vmap["version"], vmap["name"])
 		}
+	}
+}
+
+func TestComposerRewriteDistURLGitHubZipball(t *testing.T) {
+	// GitHub zipball URLs end with a bare commit hash, no file extension.
+	// The proxy must produce a filename with .zip extension so that the
+	// archives library can detect the format when browsing source.
+	h := &ComposerHandler{
+		proxy:    testProxy(),
+		proxyURL: "http://localhost:8080",
+	}
+
+	vmap := map[string]any{
+		"version": "v7.4.8",
+		"dist": map[string]any{
+			"url":       "https://api.github.com/repos/symfony/asset/zipball/d2e2f014ccd6ec9fae8dbe6336a4164346a2a856",
+			"type":      "zip",
+			"shasum":    "",
+			"reference": "d2e2f014ccd6ec9fae8dbe6336a4164346a2a856",
+		},
+	}
+
+	h.rewriteDistURL(vmap, "symfony/asset", "v7.4.8")
+
+	dist := vmap["dist"].(map[string]any)
+	url := dist["url"].(string)
+
+	// The rewritten URL's filename must have a .zip extension
+	if !strings.HasSuffix(url, ".zip") {
+		t.Errorf("rewritten dist URL filename has no .zip extension: %s", url)
+	}
+}
+
+func TestComposerRewriteMetadataGitHubZipballFilenames(t *testing.T) {
+	// End-to-end: metadata with GitHub zipball URLs should produce
+	// download URLs that end in .zip so browse source can open them.
+	h := &ComposerHandler{
+		proxy:    testProxy(),
+		proxyURL: "http://localhost:8080",
+	}
+
+	input := `{
+		"packages": {
+			"symfony/config": [
+				{
+					"version": "v7.4.8",
+					"dist": {
+						"url": "https://api.github.com/repos/symfony/config/zipball/c7369cc1da250fcbfe0c5a9d109e419661549c39",
+						"type": "zip",
+						"reference": "c7369cc1da250fcbfe0c5a9d109e419661549c39"
+					}
+				}
+			]
+		}
+	}`
+
+	output, err := h.rewriteMetadata([]byte(input))
+	if err != nil {
+		t.Fatalf("rewriteMetadata failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatalf("failed to parse output: %v", err)
+	}
+
+	packages := result["packages"].(map[string]any)
+	versions := packages["symfony/config"].([]any)
+	v := versions[0].(map[string]any)
+	dist := v["dist"].(map[string]any)
+	url := dist["url"].(string)
+
+	if !strings.HasSuffix(url, ".zip") {
+		t.Errorf("rewritten URL should end in .zip, got %s", url)
+	}
+}
+
+func TestComposerExpandMinifiedSharedDistReferences(t *testing.T) {
+	// When a minified version inherits the dist field from a previous version
+	// (i.e. it doesn't include its own dist), expanding + rewriting must not
+	// corrupt the dist URLs via shared map references.
+	h := &ComposerHandler{
+		proxy:    testProxy(),
+		proxyURL: "http://localhost:8080",
+	}
+
+	// In this minified payload, v5.3.0 does NOT include a dist field,
+	// so it inherits v5.4.0's dist. After expansion and URL rewriting,
+	// each version must have its own correct dist URL.
+	input := `{
+		"minified": "composer/2.0",
+		"packages": {
+			"vendor/pkg": [
+				{
+					"name": "vendor/pkg",
+					"version": "5.4.0",
+					"dist": {
+						"url": "https://api.github.com/repos/vendor/pkg/zipball/aaa111",
+						"type": "zip",
+						"reference": "aaa111"
+					}
+				},
+				{
+					"version": "5.3.0"
+				}
+			]
+		}
+	}`
+
+	output, err := h.rewriteMetadata([]byte(input))
+	if err != nil {
+		t.Fatalf("rewriteMetadata failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatalf("failed to parse output: %v", err)
+	}
+
+	packages := result["packages"].(map[string]any)
+	versions := packages["vendor/pkg"].([]any)
+	if len(versions) != 2 {
+		t.Fatalf("expected 2 versions, got %d", len(versions))
+	}
+
+	v1 := versions[0].(map[string]any)
+	v2 := versions[1].(map[string]any)
+
+	dist1 := v1["dist"].(map[string]any)
+	dist2 := v2["dist"].(map[string]any)
+
+	url1 := dist1["url"].(string)
+	url2 := dist2["url"].(string)
+
+	// Each version must have its own URL with its own version in the path
+	if !strings.Contains(url1, "/5.4.0/") {
+		t.Errorf("v5.4.0 dist URL should contain /5.4.0/, got %s", url1)
+	}
+	if !strings.Contains(url2, "/5.3.0/") {
+		t.Errorf("v5.3.0 dist URL should contain /5.3.0/, got %s", url2)
+	}
+
+	// The two URLs must be different
+	if url1 == url2 {
+		t.Errorf("both versions have the same dist URL (shared reference bug): %s", url1)
 	}
 }
 
