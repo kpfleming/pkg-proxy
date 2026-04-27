@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -71,7 +72,11 @@ type Proxy struct {
 	MetadataTTL    time.Duration
 	DirectServe    bool
 	DirectServeTTL time.Duration
-	HTTPClient     *http.Client
+	// DirectServeBaseURL, if set, replaces the scheme and host of presigned
+	// URLs so clients receive a public address even when the proxy reaches
+	// storage at an internal one.
+	DirectServeBaseURL string
+	HTTPClient         *http.Client
 }
 
 // NewProxy creates a new Proxy with the given dependencies.
@@ -149,9 +154,9 @@ func (p *Proxy) checkCache(ctx context.Context, pkgPURL, versionPURL, filename s
 	}
 
 	if p.DirectServe {
-		url, err := p.Storage.SignedURL(ctx, artifact.StoragePath.String, p.DirectServeTTL)
+		signed, err := p.Storage.SignedURL(ctx, artifact.StoragePath.String, p.DirectServeTTL)
 		if err == nil {
-			result.RedirectURL = url
+			result.RedirectURL = rewriteSignedURLHost(signed, p.DirectServeBaseURL)
 			p.recordCacheHit(pkgPURL, versionPURL, filename)
 			return result, nil
 		}
@@ -174,6 +179,26 @@ func (p *Proxy) checkCache(ctx context.Context, pkgPURL, versionPURL, filename s
 	result.Reader = reader
 	p.recordCacheHit(pkgPURL, versionPURL, filename)
 	return result, nil
+}
+
+// rewriteSignedURLHost replaces the scheme and host of a signed URL with those
+// from baseURL, preserving the path and query (which carry the signature).
+// Returns signed unchanged if baseURL is empty or either URL fails to parse.
+func rewriteSignedURLHost(signed, baseURL string) string {
+	if baseURL == "" {
+		return signed
+	}
+	s, err := url.Parse(signed)
+	if err != nil {
+		return signed
+	}
+	b, err := url.Parse(baseURL)
+	if err != nil || b.Scheme == "" || b.Host == "" {
+		return signed
+	}
+	s.Scheme = b.Scheme
+	s.Host = b.Host
+	return s.String()
 }
 
 func (p *Proxy) recordCacheHit(pkgPURL, versionPURL, filename string) {

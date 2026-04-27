@@ -397,6 +397,7 @@ func TestLoadDirectServeFromEnv(t *testing.T) {
 	cfg := Default()
 	t.Setenv("PROXY_STORAGE_DIRECT_SERVE", "true")
 	t.Setenv("PROXY_STORAGE_DIRECT_SERVE_TTL", "30m")
+	t.Setenv("PROXY_STORAGE_DIRECT_SERVE_BASE_URL", "https://cdn.example.com")
 	cfg.LoadFromEnv()
 
 	if !cfg.Storage.DirectServe {
@@ -404,5 +405,27 @@ func TestLoadDirectServeFromEnv(t *testing.T) {
 	}
 	if cfg.Storage.DirectServeTTL != "30m" {
 		t.Errorf("Storage.DirectServeTTL = %q, want %q", cfg.Storage.DirectServeTTL, "30m")
+	}
+	if cfg.Storage.DirectServeBaseURL != "https://cdn.example.com" {
+		t.Errorf("Storage.DirectServeBaseURL = %q, want %q", cfg.Storage.DirectServeBaseURL, "https://cdn.example.com")
+	}
+}
+
+func TestValidateDirectServeBaseURL(t *testing.T) {
+	cfg := Default()
+
+	cfg.Storage.DirectServeBaseURL = "not a url"
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected validation error for relative direct_serve_base_url")
+	}
+
+	cfg.Storage.DirectServeBaseURL = "://bad"
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected validation error for unparseable direct_serve_base_url")
+	}
+
+	cfg.Storage.DirectServeBaseURL = "https://cdn.example.com"
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("unexpected error for valid direct_serve_base_url: %v", err)
 	}
 }

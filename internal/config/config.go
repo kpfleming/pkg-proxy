@@ -51,6 +51,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -142,6 +143,12 @@ type StorageConfig struct {
 	// DirectServeTTL is how long presigned URLs remain valid.
 	// Uses Go duration syntax (e.g. "5m", "1h"). Default: "15m".
 	DirectServeTTL string `json:"direct_serve_ttl" yaml:"direct_serve_ttl"`
+
+	// DirectServeBaseURL overrides the scheme and host of presigned URLs
+	// before returning them to clients. Useful when the proxy reaches
+	// storage at an internal address (e.g. 127.0.0.1 or a Docker hostname)
+	// but clients must use a public one.
+	DirectServeBaseURL string `json:"direct_serve_base_url" yaml:"direct_serve_base_url"`
 }
 
 // DatabaseConfig configures the cache database.
@@ -318,6 +325,9 @@ func (c *Config) LoadFromEnv() {
 	if v := os.Getenv("PROXY_STORAGE_DIRECT_SERVE_TTL"); v != "" {
 		c.Storage.DirectServeTTL = v
 	}
+	if v := os.Getenv("PROXY_STORAGE_DIRECT_SERVE_BASE_URL"); v != "" {
+		c.Storage.DirectServeBaseURL = v
+	}
 	if v := os.Getenv("PROXY_DATABASE_DRIVER"); v != "" {
 		c.Database.Driver = v
 	}
@@ -398,6 +408,14 @@ func (c *Config) Validate() error {
 	if c.Storage.DirectServeTTL != "" {
 		if _, err := time.ParseDuration(c.Storage.DirectServeTTL); err != nil {
 			return fmt.Errorf("invalid storage.direct_serve_ttl %q: %w", c.Storage.DirectServeTTL, err)
+		}
+	}
+
+	// Validate direct serve base URL if specified
+	if c.Storage.DirectServeBaseURL != "" {
+		u, err := url.Parse(c.Storage.DirectServeBaseURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return fmt.Errorf("invalid storage.direct_serve_base_url %q: must be an absolute URL", c.Storage.DirectServeBaseURL)
 		}
 	}
 

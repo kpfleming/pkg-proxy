@@ -150,6 +150,7 @@ func (s *Server) Start() error {
 	proxy.MetadataTTL = s.cfg.ParseMetadataTTL()
 	proxy.DirectServe = s.cfg.Storage.DirectServe
 	proxy.DirectServeTTL = s.cfg.ParseDirectServeTTL()
+	proxy.DirectServeBaseURL = s.cfg.Storage.DirectServeBaseURL
 
 	// Create router with Chi
 	r := chi.NewRouter()
