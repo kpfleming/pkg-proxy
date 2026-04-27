@@ -148,6 +148,8 @@ func (s *Server) Start() error {
 	proxy.Cooldown = cd
 	proxy.CacheMetadata = s.cfg.CacheMetadata
 	proxy.MetadataTTL = s.cfg.ParseMetadataTTL()
+	proxy.DirectServe = s.cfg.Storage.DirectServe
+	proxy.DirectServeTTL = s.cfg.ParseDirectServeTTL()
 
 	// Create router with Chi
 	r := chi.NewRouter()

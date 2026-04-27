@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Filesystem implements Storage using the local filesystem.
@@ -127,6 +128,10 @@ func (fs *Filesystem) Delete(ctx context.Context, path string) error {
 	}
 
 	return nil
+}
+
+func (fs *Filesystem) SignedURL(_ context.Context, _ string, _ time.Duration) (string, error) {
+	return "", ErrSignedURLUnsupported
 }
 
 func (fs *Filesystem) Size(ctx context.Context, path string) (int64, error) {
