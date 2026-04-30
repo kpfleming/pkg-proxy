@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewFilesystem(t *testing.T) {
@@ -234,6 +235,15 @@ func TestFilesystemUsedSpace(t *testing.T) {
 
 func TestFilesystemLargeFile(t *testing.T) {
 	assertLargeFileRoundTrip(t, createTestFilesystem(t))
+}
+
+func TestFilesystemSignedURLUnsupported(t *testing.T) {
+	fs := createTestFilesystem(t)
+
+	_, err := fs.SignedURL(context.Background(), "test/file.txt", time.Minute)
+	if !errors.Is(err, ErrSignedURLUnsupported) {
+		t.Errorf("SignedURL = %v, want ErrSignedURLUnsupported", err)
+	}
 }
 
 func createTestFilesystem(t *testing.T) *Filesystem {
