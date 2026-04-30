@@ -264,6 +264,7 @@ func (s *Server) Start() error {
 		"storage", s.storage.URL(),
 		"database", s.cfg.Database.Path)
 	go s.updateCacheStatsMetrics()
+	go s.startEvictionLoop(bgCtx)
 
 	return s.http.ListenAndServe()
 }
